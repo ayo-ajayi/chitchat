@@ -17,7 +17,7 @@ Run CLI using a .chitchat.yaml file that is not in the home directory:
 ```bash
 chitchat --config path/to/.chitchat.yaml
 ```
-The template for the .chitchat.yaml file can be found [here](./chitchat.yaml)  
+The template for the .chitchat.yaml file can be found [here](./.chitchat.yaml)  
 Also ensure that you have [redis](https://redis.io/) running on your machine or on the cloud for storage.
 
 ### Getting Started
