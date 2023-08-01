@@ -1,0 +1,7 @@
+openapi_key: #required
+
+redis:
+  addr: #optional
+  default_db: #optional
+  history_key: #optional
+  models_key: #optional
