@@ -2,10 +2,17 @@ package history
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/ayo-ajayi/chitchat/history"
+	"github.com/ayo-ajayi/chitchat/redis"
 	"github.com/spf13/cobra"
 )
+
+
+type HistoryService struct {
+	history *history.History
+}
 var defaultHistoryLimit int64 = 10
 var limit int64 = defaultHistoryLimit
 	
@@ -14,15 +21,18 @@ var HistoryCmd = &cobra.Command{
 	Short: "Chat History",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
+		historyS := HistoryService{
+			history: history.NewHistory(redis.DefaultClient()),
+		}
 		if limit <=0 {
 			limit=defaultHistoryLimit
 		}
-		chat, err := history.GetChat(limit)
+		chat, err := historyS.history.GetChat(limit)
 		if err != nil {
-			fmt.Println(err)
+			log.Fatalln(err)
 		}
 		for _, c:=range chat{
-			date, err:=history.GetDate(c.ID)
+			date, err:=historyS.history.GetDate(c.ID)
 			if err != nil {
 				date=""
 			}
@@ -30,6 +40,7 @@ var HistoryCmd = &cobra.Command{
 			for key, value := range c.Values {
 				fmt.Println("Prompt:", key, "Answer:", value)
 			}
+			fmt.Println()
 		}
 	},
 }

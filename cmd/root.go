@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"fmt"
+	"log"
+	"os"
+
 	"github.com/ayo-ajayi/chitchat/cmd/chat"
 	"github.com/ayo-ajayi/chitchat/cmd/history"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
 )
 
 var cfgFile string
@@ -23,7 +25,7 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalln(err)
 		os.Exit(1)
 	}
 }

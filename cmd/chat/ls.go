@@ -3,9 +3,29 @@ package chat
 import (
 	"fmt"
 	"github.com/ayo-ajayi/chitchat/gpt"
-	rdb "github.com/ayo-ajayi/chitchat/redis"
+	"github.com/ayo-ajayi/chitchat/redis"
 	"github.com/spf13/cobra"
+	"log"
 )
+
+type DBClient interface {
+	SetList(key string, value []string) error
+	GetList(key string) ([]string, error)
+	Close() error
+}
+type List struct {
+	gpt *gpt.GPT
+	db DBClient
+}
+
+func Newlist(db DBClient) *List {
+	g, err := gpt.NewGPT()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	return &List{gpt: g,
+		db: db,}
+}
 
 var refresh bool
 var lsCmd = &cobra.Command{
@@ -13,19 +33,20 @@ var lsCmd = &cobra.Command{
 	Short: "list of available gpt models",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
+		list := Newlist(redis.DefaultClient())
 		fmt.Println()
 		var ls []string
 		var err error
 		if refresh {
-			ls, err = gpt.LS()
+			ls, err = list.gpt.LS()
 			if err != nil {
-				panic(err)
+				log.Fatalln(err)
 			}
-			c := rdb.DefaultClient()
+			c := list.db
 			c.SetList("chitchat:model", ls)
-			defer c.C.Close()
+			defer c.Close()
 		} else {
-			ls = gpt.ListOfModels
+			ls = list.gpt.ListOfModels()
 		}
 		for i, l := range ls {
 			fmt.Printf("[%v]: %v\n", i, l)

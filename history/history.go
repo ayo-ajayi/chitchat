@@ -1,29 +1,38 @@
 package history
 
 import (
-	rdb "github.com/ayo-ajayi/chitchat/redis"
-	"github.com/redis/go-redis/v9"
+	"github.com/ayo-ajayi/chitchat/util"
+	"github.com/ayo-ajayi/chitchat/types"
 )
+type DBClient interface {
+	AddStream(key string, value string) error
+	ReadStream(limit int64) ([]types.Message, error)
+}
 
-func SaveChat(input, response string) error {
-	c := rdb.DefaultClient()
-	defer c.C.Close()
-	if err := c.AddStream(input, response); err != nil {
+type History struct {
+	dbclient DBClient
+}
+
+func NewHistory(C DBClient) *History {
+	return &History{
+		dbclient: C,
+	}
+}
+func (h *History)SaveChat(input, response string) error {
+	if err := h.dbclient.AddStream(input, response); err != nil {
 		return err
 	}
 	return nil
 }
-func GetChat(limit int64) ([]redis.XMessage, error) {
-	c := rdb.DefaultClient()
-	defer c.C.Close()
-	res, err := c.ReadStream(limit)
+func (h *History)GetChat(limit int64) ([]types.Message, error) {
+	res, err := h.dbclient.ReadStream(limit)
 	if err != nil {
 		return nil, err
 	}
 	return res, err
 }
-func GetDate(id string) (string, error) {
-	date, err := rdb.GetDateFromStreamID(id)
+func (h *History)GetDate(id string) (string, error) {
+	date, err := util.GetDateFromStreamID(id)
 	if err != nil {
 		return "", err
 	}

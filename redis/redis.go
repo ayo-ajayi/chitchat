@@ -2,18 +2,14 @@ package redis
 
 import (
 	"context"
-	"fmt"
+	"time"
+
+	"github.com/ayo-ajayi/chitchat/config"
+	"github.com/ayo-ajayi/chitchat/types"
+	"github.com/ayo-ajayi/chitchat/util"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
-	"strconv"
-	"strings"
-	"time"
 )
-
-const ADDR string = ""
-const DEFAULT_DB int = 4
-const HISTORY_KEY string = "chitchat:history"
-const MODELS_KEY string = "chitchat:model"
 
 type Client struct {
 	C *redis.Client
@@ -32,10 +28,10 @@ func NewClient(opt *options) *Client {
 }
 func DefaultClient() *Client {
 
-	var historyKey string = HISTORY_KEY
-	var defaultDB int = DEFAULT_DB
-	var addr string = ADDR
-	var modelsKey string = MODELS_KEY
+	var historyKey string = config.HISTORY_KEY
+	var defaultDB int = config.DEFAULT_DB
+	var addr string = config.ADDR
+	var modelsKey string = config.MODELS_KEY
 
 	const redis_yaml = "redis"
 	const models_yaml = "models_key"
@@ -112,34 +108,23 @@ func (c *Client) AddStream(key, value string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := c.C.XAdd(ctx, &redis.XAddArgs{
-		Stream: HISTORY_KEY,
+		Stream: config.HISTORY_KEY,
 		Values: map[string]any{key: value},
 	}).Err(); err != nil {
 		return err
 	}
 	return nil
 }
-func (c *Client) ReadStream(limit int64) ([]redis.XMessage, error) {
+func (c *Client) ReadStream(limit int64) ([]types.Message, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	res, err := c.C.XRevRangeN(ctx, HISTORY_KEY, "+", "-", limit).Result()
+	res, err := c.C.XRevRangeN(ctx, config.HISTORY_KEY, "+", "-", limit).Result()
 	if err != nil {
 		return nil, err
 	}
-
-	return res, nil
+	return util.ConvertToXM(res), nil
 }
-func GetDateFromStreamID(streamID string) (string, error) {
-	parts := strings.Split(streamID, "-")
-	if len(parts) != 2 {
-		return "", fmt.Errorf("invalid stream ID format")
-	}
 
-	timestampMs, err := strconv.ParseInt(parts[0], 10, 64)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse timestamp: %v", err)
-	}
-	timestampSec := timestampMs / 1000
-	t := time.Unix(timestampSec, 0).UTC()
-	return t.Format("2006-01-02 15:04:05"), nil
+func (c *Client) Close()error{
+	return c.C.Close()
 }

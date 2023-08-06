@@ -3,14 +3,22 @@ package chat
 import (
 	"bufio"
 	"fmt"
-	"github.com/ayo-ajayi/chitchat/gpt"
-	"github.com/ayo-ajayi/chitchat/history"
-	"github.com/spf13/cobra"
+	"log"
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"syscall"
+
+	"github.com/ayo-ajayi/chitchat/history"
+	"github.com/ayo-ajayi/chitchat/redis"
+	"github.com/spf13/cobra"
 )
+
+type ChatService struct {
+	history *history.History
+	list *List
+}
 
 var gptModel int16
 var nosave bool
@@ -19,17 +27,21 @@ var ChatCmd = &cobra.Command{
 	Short: "interactive conversation with ai",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
+		chat:=ChatService{
+			history: history.NewHistory(redis.DefaultClient()),
+			list: Newlist(redis.DefaultClient()),
+		}
 		fmt.Println("Welcome to My Chitchat CLI App! Enter Ctrl+C to exit.")
 		fmt.Println("Type 'exit' to quit.")
 		interrupt := make(chan os.Signal, 1)
 		signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
 		var model string
 		if gptModel < 0 {
-			model = string(gpt.DefaultModel())
+			model = string(chat.list.gpt.DefaultModel()) 
 			fmt.Println("using default model: ", model)
 			fmt.Println()
 		} else {
-			model = gpt.ListOfModels[gptModel]
+			model = chat.list.gpt.ListOfModels()[gptModel]
 			fmt.Println("using model: ", model)
 			fmt.Println()
 		}
@@ -51,10 +63,10 @@ var ChatCmd = &cobra.Command{
 					clearScreen()
 				default:
 					var res string
-					res = gpt.Chat(input, &model)
+					res = chat.list.gpt.Chat(input, &model)
 					if !nosave {
-						if err := history.SaveChat(input, res); err != nil {
-							fmt.Println(err)
+						if err := chat.history.SaveChat(input, res); err != nil {
+							log.Fatalln(err)
 						}
 					}
 					fmt.Println(res)
@@ -69,6 +81,12 @@ var ChatCmd = &cobra.Command{
 }
 
 func clearScreen() {
+	if runtime.GOOS == "windows" {
+		cmd := exec.Command("cmd", "/c", "cls")
+		cmd.Stdout = os.Stdout
+		cmd.Run()
+		return
+	}
 	cmd := exec.Command("clear")
 	cmd.Stdout = os.Stdout
 	cmd.Run()
